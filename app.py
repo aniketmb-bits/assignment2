@@ -38,13 +38,13 @@ with col2:
 # 3. Create Dataframe from Inputs
 input_data = pd.DataFrame([{
     'type': wine_type_encoded,  # Using the encoded value
-    'fixed acidity': 7.0, # Using baseline constants for unlisted features
-    'volatile acidity': volatile_acidity,
-    'citric acid': citric_acid,
-    'residual sugar': residual_sugar,
+    'fixed_acidity': 7.0, # Using baseline constants for unlisted features
+    'volatile_acidity': volatile_acidity,
+    'citric_acid': citric_acid,
+    'residual_sugar': residual_sugar,
     'chlorides': chlorides,
-    'free sulfur dioxide': free_so2,
-    'total sulfur dioxide': total_so2,
+    'free_sulfur_dioxide': free_so2,
+    'total_sulfur_dioxide': total_so2,
     'density': density,
     'pH': pH,
     'sulphates': sulphates,
