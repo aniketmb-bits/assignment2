@@ -37,7 +37,7 @@ with col2:
 
 # 3. Create Dataframe from Inputs
 input_data = pd.DataFrame([{
-    'type': wine_type_encoded,  # Using the encoded value
+#    'type': wine_type_encoded,  # Using the encoded value
     'fixed_acidity': 7.0, # Using baseline constants for unlisted features
     'volatile_acidity': volatile_acidity,
     'citric_acid': citric_acid,
