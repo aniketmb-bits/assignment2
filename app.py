@@ -45,7 +45,7 @@ input_data = pd.DataFrame([{
 }])
 
 @st.cache_resource
-def load_scalar_model():
+def load_scaler_model():
     loaded_scaler = joblib.load("model/wine_scaler.pkl")
     return loaded_scaler
     
