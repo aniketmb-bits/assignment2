@@ -80,21 +80,21 @@ model_lg = load_lg_saved_model()
 model_knn = load_knn_saved_model()
 model_dt = load_dt_saved_model()
 model_nb = load_nb_saved_model()
-scaler = load_scaler_model()
+scaler =   load_scaler_model()
 
 wine_model_type = st.selectbox("Select model", ["Logistic regression", "Decision tree", "K Nearest neighbours", "naive bayes classifier", "Random Forest"])
 
 if st.button("🔮 Predict Wine Quality Tier"):
     if (wine_model_type == "Logistic regression"):
         simulated_prediction = model_lg.predict(scaler.transform(input_data))
-    elif (wine_model_type = "Decision tree):
+    elif (wine_model_type == "Decision tree"):
         simulated_prediction = model_dt.predict(scaler.transform(input_data))
-    elif (wine_model_type = "K Nearest neighbours"):
-        simulated_model_type = model_knn.predict(scaler.transform(input_data))
+    elif (wine_model_type == "K Nearest neighbours"):
+        simulated_prediction = model_knn.predict(scaler.transform(input_data))
     elif (wine_model_type == "naive bayes classifier"):
-        simulated_model_type == model_nb.predict(scaler.transform(input_data))
+        simulated_prediction == model_nb.predict(scaler.transform(input_data))
     elif (wine_model_type == "Random Forest"):
-        simulated_model_type = model_rf.predict(scaler.transform(input_data))
+        simulated_prediction = model_rf.predict(scaler.transform(input_data))
     
     # 5. Display the output cleanly with status markers
     st.markdown("---")
