@@ -2,11 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
-# (Optional) Import your trained model file here, e.g., using joblib
-# import joblib
-# model = joblib.load("random_forest_wine_model.pkl")
 
-# 1. Set App Title and Subheading
 st.title("🍷 Wine Quality Predictor App")
 st.write("Adjust the physicochemical properties below to classify the wine quality tier.")
 
@@ -18,7 +14,6 @@ if wine_display_type == "Red Wine":
 else:
     wine_type_encoded = 0
 
-# 2. Organize User Input Controls into Columns
 col1, col2 = st.columns(2)
 
 with col1:
@@ -35,9 +30,7 @@ with col2:
     pH = st.slider("pH Level", min_value=2.5, max_value=4.0, value=3.2, step=0.01)
     sulphates = st.slider("Sulphates (g/dm³)", min_value=0.2, max_value=2.0, value=0.6, step=0.01)
 
-# 3. Create Dataframe from Inputs
 input_data = pd.DataFrame([{
-#    'type': wine_type_encoded,  # Using the encoded value
     'fixed_acidity': 7.0, # Using baseline constants for unlisted features
     'volatile_acidity': volatile_acidity,
     'citric_acid': citric_acid,
@@ -52,20 +45,56 @@ input_data = pd.DataFrame([{
 }])
 
 @st.cache_resource
-def load_saved_model():
+def load_scalar_model():
+    loaded_scaler = joblib.load("model/wine_scaler.pkl")
+    return loaded_scaler
+    
+def load_rf_saved_model():
     # Make sure these filenames match your exported files exactly
     loaded_model = joblib.load("model/wine_rf_model.pkl")
-    loaded_scaler = joblib.load("model/wine_scaler.pkl")
-    return loaded_model, loaded_scaler
+    return loaded_model
+
+def load_lg_saved_model():
+    # Make sure these filenames match your exported files exactly
+    loaded_model = joblib.load("model/wine_lg_model.pkl")
+    return loaded_model
+
+def load_knn_saved_model():
+    # Make sure these filenames match your exported files exactly
+    loaded_model = joblib.load("model/wine_knn_model.pkl")
+    return loaded_model
+
+def load_nb_saved_model():
+    # Make sure these filenames match your exported files exactly
+    loaded_model = joblib.load("model/wine_nb_model.pkl")
+    return loaded_model
+
+def load_dt_saved_model():
+    # Make sure these filenames match your exported files exactly
+    loaded_model = joblib.load("model/wine_dt_model.pkl")
+    return loaded_model
 
 # Call the function to fetch your pipeline
-model, scaler = load_saved_model()
+model_rf = load_rf_saved_model()
+model_lg = load_lg_saved_model()
+model_knn = load_knn_saved_model()
+model_dt = load_dt_saved_model()
+model_nb = load_nb_saved_model()
+scaler = load_scaler_model()
 
-# 4. Trigger Prediction Button
+wine_model_type = st.selectbox("Select model", ["Logistic regression", "Decision tree", "K Nearest neighbours", "naive bayes classifier", "Random Forest"])
+
 if st.button("🔮 Predict Wine Quality Tier"):
-    # Simulated prediction output logic 
-    # (Replace this with model.predict(input_data) once your pkl file is linked)
-    simulated_prediction = model.predict(scaler.transform(input_data))
+    if (wine_model_type == "Logistic regression"):
+        simulated_prediction = model_lg.predict(scaler.transform(input_data))
+    elif (wine_model_type = "Decision tree):
+        simulated_prediction = model_dt.predict(scaler.transform(input_data))
+    elif (wine_model_type = "K Nearest neighbours"):
+        simulated_model_type = model_knn.predict(scaler.transform(input_data))
+    elif (wine_model_type == "naive bayes classifier"):
+        simulated_model_type == model_nb.predict(scaler.transform(input_data))
+    elif (wine_model_type == "Random Forest"):
+        simulated_model_type = model_rf.predict(scaler.transform(input_data))
     
     # 5. Display the output cleanly with status markers
     st.markdown("---")
