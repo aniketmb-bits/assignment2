@@ -54,8 +54,8 @@ input_data = pd.DataFrame([{
 @st.cache_resource
 def load_saved_model():
     # Make sure these filenames match your exported files exactly
-    loaded_model = joblib.load("wine_rf_model.pkl")
-    loaded_scaler = joblib.load("wine_scaler.pkl")
+    loaded_model = joblib.load("model/wine_rf_model.pkl")
+    loaded_scaler = joblib.load("model/wine_scaler.pkl")
     return loaded_model, loaded_scaler
 
 # Call the function to fetch your pipeline
