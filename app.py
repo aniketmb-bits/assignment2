@@ -17,6 +17,7 @@ else:
 col1, col2 = st.columns(2)
 
 with col1:
+    fixed_acidity = st.slider("Fixed Acidity", min_value=0.0, max_value=10.0, value=6, step=0.1)
     alcohol = st.slider("Alcohol Content (%)", min_value=8.0, max_value=15.0, value=10.5, step=0.1)
     volatile_acidity = st.slider("Volatile Acidity (g/dm³)", min_value=0.0, max_value=1.5, value=0.3, step=0.01)
     citric_acid = st.slider("Citric Acid (g/dm³)", min_value=0.0, max_value=1.0, value=0.3, step=0.01)
@@ -31,7 +32,7 @@ with col2:
     sulphates = st.slider("Sulphates (g/dm³)", min_value=0.2, max_value=2.0, value=0.6, step=0.01)
 
 input_data = pd.DataFrame([{
-    'fixed_acidity': 7.0, # Using baseline constants for unlisted features
+    'fixed_acidity': fixed_acidity, # Using baseline constants for unlisted features
     'volatile_acidity': volatile_acidity,
     'citric_acid': citric_acid,
     'residual_sugar': residual_sugar,
