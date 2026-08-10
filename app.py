@@ -81,20 +81,22 @@ sys.modules["preprocessors"] = sys.modules[__name__]
 # 2. STEP 2: STREAMLIT APP LOGIC
 # ==========================================
 st.title("🚀 Model Inference Dashboard")
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_DIR = BASE_DIR / "model"
 
 # Look for available .pkl files dynamically
-all_files = os.listdir("./model")
+all_files = os.listdir(MODEL_DIR)
 model_options = [
     f for f in all_files if f.endswith(".pkl") and "transformer" not in f.lower()
 ]
 if not model_options:
-    model_options = ["model/logistic_regression_l1.pkl"]
+    model_options = ["logistic_regression_l1.pkl"]
 
 transformer_options = [
     f for f in all_files if f.endswith(".pkl") and "transformer" in f.lower()
 ]
 if not transformer_options:
-    transformer_options = ["model/data_transformer.pkl"]
+    transformer_options = ["data_transformer.pkl"]
 
 # Add dropdown configuration sidebars
 st.sidebar.subheader("⚙️ Configuration")
