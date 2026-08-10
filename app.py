@@ -75,19 +75,8 @@ class IncomeDataTransformer(BaseEstimator, TransformerMixin):
         X_clean["occupation"] = self.occupation_imputer_.transform(
             X_clean[["occupation"]]
         ).ravel()
-        if "income" in X_clean.columns:
-            X_clean = X_clean.drop(columns=["income"])
-        # SAFE FILTER: Only one-hot encode features that actually match your training categorical list
-        dummy_cols = [
-            col
-            for col in self.categorical_features_ + ["occupation"]
-            if col in X_clean.columns
-        ]
-
+        dummy_cols = self.categorical_features_ + ["occupation"]
         X_encoded = pd.get_dummies(X_clean, columns=dummy_cols, drop_first=True)
-
-        # REINDEX ALIGNMENT: Drops raw "income" or extra text categories automatically, 
-        # while padding missing columns with 0
         X_final = X_encoded.reindex(
             columns=self.expected_columns_, fill_value=0
         )
@@ -198,10 +187,18 @@ if uploaded_file is not None:
     if run_button or (st.session_state.processed_results is None):
         with st.spinner(f"Processing data with {selected_model_file}..."):
             try:
-                X_test_processed = transformer.transform(X_test_raw)
+                # ------------------------------------------------------------------
+                # PROACTIVE FIX: Drop 'income' BEFORE passing to the frozen pickle
+                # ------------------------------------------------------------------
+                X_input_clean = X_test_raw.copy()
+                if "income" in X_input_clean.columns:
+                    X_input_clean = X_input_clean.drop(columns=["income"])
+
+                # Transform the safely scrubbed features matrix
+                X_test_processed = transformer.transform(X_input_clean)
                 predictions = model.predict(X_test_processed)
 
-                # Attach outputs to a visual copy dataframe
+                # Attach outputs back to a visual copy dataframe for user interface
                 display_df = X_test_raw.copy()
                 display_df["Predicted_Income"] = predictions
                 display_df["Predicted_Income_Label"] = display_df[
