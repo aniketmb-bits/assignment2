@@ -83,7 +83,7 @@ sys.modules["preprocessors"] = sys.modules[__name__]
 st.title("🚀 Model Inference Dashboard")
 
 # Look for available .pkl files dynamically
-all_files = os.listdir(".")
+all_files = os.listdir("./model")
 model_options = [
     f for f in all_files if f.endswith(".pkl") and "transformer" not in f.lower()
 ]
@@ -94,7 +94,7 @@ transformer_options = [
     f for f in all_files if f.endswith(".pkl") and "transformer" in f.lower()
 ]
 if not transformer_options:
-    transformer_options = ["data_transformer.pkl"]
+    transformer_options = ["model/data_transformer.pkl"]
 
 # Add dropdown configuration sidebars
 st.sidebar.subheader("⚙️ Configuration")
