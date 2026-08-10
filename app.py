@@ -133,6 +133,14 @@ def plot_roc_curve(model_dict, X_test, y_test):
 # ==========================================
 st.title("🚀 Model Inference & Evaluation Dashboard")
 
+# Initialize Session State values to track prediction states between dropdown changes
+if "processed_results" not in st.session_state:
+    st.session_state.processed_results = None
+if "last_model" not in st.session_state:
+    st.session_state.last_model = None
+if "last_transformer" not in st.session_state:
+    st.session_state.last_transformer = None
+
 # Scan folder for files
 if MODEL_DIR.exists():
     all_files = os.listdir(MODEL_DIR)
@@ -186,6 +194,15 @@ if not model_dict:
 selected_model_name = st.sidebar.selectbox("Active Preview Model:", options=list(model_dict.keys()))
 active_model = model_dict[selected_model_name]
 
+# If user flips dropdown settings, invalidate the old results to trigger an automatic re-run
+if (
+    st.session_state.last_model != selected_model_name
+    or st.session_state.last_transformer != selected_transformer_file
+):
+    st.session_state.processed_results = None
+    st.session_state.last_model = selected_model_name
+    st.session_state.last_transformer = selected_transformer_file
+
 # Display Feature names
 st.subheader("📋 Expected Model Features")
 with st.expander(f"View all {len(transformer.expected_columns_)} feature columns"):
@@ -210,7 +227,9 @@ if uploaded_file is not None:
     else:
         st.warning("⚠️ **No 'income' column found.** Running in pure production inference mode (no metrics or charts).")
 
-    if st.button("Run Diagnostics & Predictions"):
+    run_button = st.button("Run Diagnostics & Predictions")
+
+    if run_button or (st.session_state.processed_results is None):
         with st.spinner("Processing computations..."):
             try:
                 # 1. Isolate the target label text safely if it exists
@@ -222,7 +241,7 @@ if uploaded_file is not None:
                     y_test = X_input_clean["income"].map({"<=50K": 0, ">50K": 1, 0: 0, 1: 1})
                     X_input_clean = X_input_clean.drop(columns=["income"])
 
-                # 2. Preprocess features
+                # 2. Preprocess features using the transformer
                 X_test_processed = transformer.transform(X_input_clean)
 
                 # 3. Predict using active selection model for table preview
@@ -231,68 +250,10 @@ if uploaded_file is not None:
                 display_df["Predicted_Income"] = active_preds
                 display_df["Predicted_Income_Label"] = display_df["Predicted_Income"].map({0: "<=50K", 1: ">50K"})
 
-                st.success(f"Processing complete using **{selected_model_name}**!")
-                st.write("### Predictions Output Preview", display_df.head())
-
-                # Download button
-                csv_data = display_df.to_csv(index=False).encode("utf-8")
-                st.download_button(
-                    label="📥 Download Predictions CSV",
-                    data=csv_data,
-                    file_name=f"predictions_{selected_model_name}.csv",
-                    mime="text/csv",
-                )
-
-                # 4. Dynamic Evaluation Block (Only triggers if 'income' is present)
-                if has_ground_truth and y_test is not None:
-                    st.markdown("---")
-                    st.subheader("📈 Performance Benchmarking (All Loaded Models)")
-                    
-                    # Target Metric Placeholders
-                    accuracy_dict = {}
-                    recall_dict = {}
-                    precision_dict = {}
-                    f1_dict = {}
-                    mcc_dict = {}
-
-                    # Calculate predictions loop for EVERY loaded model
-            for name, model_obj in model_dict.items():
-                # 4. Dynamic Evaluation Block (Only triggers if 'income' is present)
-                if has_ground_truth and y_test is not None:
-                    st.markdown("---")
-                    st.subheader("📈 Performance Benchmarking (All Loaded Models)")
-                    
-                    # Target Metric Placeholders
-                    accuracy_dict = {}
-                    recall_dict = {}
-                    precision_dict = {}
-                    f1_dict = {}
-                    mcc_dict = {}
-
-                    # Calculate predictions loop for EVERY loaded model
-                    for name, model_obj in model_dict.items():
-                        try:
-                            y_pred = model_obj.predict(X_test_processed)
-                            acc, rec, prec, f1, mcc_val = evaluate_model(y_test, y_pred)
-                            
-                            accuracy_dict[name] = acc
-                            recall_dict[name] = rec
-                            precision_dict[name] = prec
-                            f1_dict[name] = f1
-                            mcc_dict[name] = mcc_val
-                        except Exception as eval_err:
-                            st.warning(f"Could not calculate metrics for {name}: {eval_err}")
-
-                    # Render Evaluation DataFrame
-                    if accuracy_dict:
-                        metrics_df = get_metrics_dataframe(
-                            accuracy_dict, recall_dict, precision_dict, f1_dict, mcc_dict, list(accuracy_dict.keys())
-                        )
-                        st.dataframe(metrics_df.style.highlight_max(axis=0, color='#26a862'), use_container_width=True)
-
-                        # Plot ROC Curve
-                        st.subheader("🎯 ROC Curves Comparison")
-                        plot_roc_curve(model_dict, X_test_processed, y_test)
-
+                # Store matrix inside Session State memory
+                st.session_state.processed_results = (display_df, X_test_processed, y_test)
+                
             except Exception as e:
                 st.error(f"Inference Engine failure: {e}")
+                st.session_state.processed_results = None
+
