@@ -5,8 +5,13 @@ import joblib
 import numpy as np
 import pandas as pd
 import streamlit as st
+import matplotlib.pyplot as plt
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.impute import SimpleImputer
+from sklearn.metrics import (
+    accuracy_score, recall_score, precision_score, 
+    f1_score, matthews_corrcoef, RocCurveDisplay
+)
 
 # ==========================================
 # 1. SETUP ENVIRONMENT AND RESOLVE PATHS
@@ -45,7 +50,7 @@ class IncomeDataTransformer(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         X_clean = self._stateless_clean(X)
-        self.country_mode_ = X_clean["native.country"].mode()[0]
+        self.country_mode_ = X_clean["native.country"].mode()
         X_clean["native.country"] = X_clean["native.country"].fillna(
             self.country_mode_
         )
@@ -84,145 +89,210 @@ class IncomeDataTransformer(BaseEstimator, TransformerMixin):
 
 
 # ==========================================
-# 3. STEP 2: STREAMLIT APP LOGIC & STATE
+# 3. EVALUATION AND PLOTTING FUNCTIONS
 # ==========================================
-st.title("🚀 Model Inference Dashboard")
+def evaluate_model(y_test, y_pred):
+    accuracy = accuracy_score(y_test, y_pred)
+    recall = recall_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    mcc = matthews_corrcoef(y_test, y_pred)
+    return accuracy, recall, precision, f1, mcc
 
-# Initialize Session State values to track prediction states between dropdown changes
-if "processed_results" not in st.session_state:
-    st.session_state.processed_results = None
-if "last_model" not in st.session_state:
-    st.session_state.last_model = None
-if "last_transformer" not in st.session_state:
-    st.session_state.last_transformer = None
 
-# Safe folder scanning: scans model directory if it exists, otherwise root workspace
+def get_metrics_dataframe(accuracy, recall, precision, f1, mcc, model_dict):
+    rows = []
+    for model_name in model_dict:
+        rows.append({
+            'Model Name': model_name,
+            'Accuracy': accuracy[model_name],
+            'Recall': recall[model_name],
+            'Precision': precision[model_name],
+            'F1 Score': f1[model_name],
+            'MCC': mcc[model_name]
+        })
+    return pd.DataFrame(rows)
+
+
+def plot_roc_curve(model_dict, X_test, y_test):
+    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+    for model_name, model in model_dict.items():
+        RocCurveDisplay.from_estimator(model, X_test, y_test, ax=ax, name=model_name)
+
+    ax.plot([0, 1], [0, 1], color='gray', linestyle='--', label='Random Guess (AUC = 0.5)')
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("ROC Curve - Adult Income Model (All Models)")
+    plt.grid(True, linestyle=":", alpha=0.6)
+    plt.legend()
+    st.pyplot(fig)
+
+
+# ==========================================
+# 4. STEP 2: STREAMLIT APP LOGIC & STATE
+# ==========================================
+st.title("🚀 Model Inference & Evaluation Dashboard")
+
+# Scan folder for files
 if MODEL_DIR.exists():
     all_files = os.listdir(MODEL_DIR)
 else:
     all_files = os.listdir(BASE_DIR)
 
-model_options = [
-    f for f in all_files if f.endswith(".pkl") and "transformer" not in f.lower()
-]
-if not model_options:
-    model_options = ["logistic_regression_l1.pkl"]
+model_files = [f for f in all_files if f.endswith(".pkl") and "transformer" not in f.lower()]
+if not model_files:
+    model_files = ["logistic_regression_l1.pkl"]
 
-transformer_options = [
-    f for f in all_files if f.endswith(".pkl") and "transformer" in f.lower()
-]
+transformer_options = [f for f in all_files if f.endswith(".pkl") and "transformer" in f.lower()]
 if not transformer_options:
     transformer_options = ["data_transformer.pkl"]
 
-# Add dropdown configuration sidebars
+# Sidebar settings
 st.sidebar.subheader("⚙️ Configuration")
-selected_model_file = st.sidebar.selectbox(
-    "Select the trained model file to use:", options=model_options, index=0
-)
-selected_transformer_file = st.sidebar.selectbox(
-    "Select data transformer file:", options=transformer_options, index=0
-)
+selected_transformer_file = st.sidebar.selectbox("Select data transformer file:", options=transformer_options, index=0)
 
-# If user flips dropdown settings, invalidate the old results to trigger an automatic re-run
-if (
-    st.session_state.last_model != selected_model_file
-    or st.session_state.last_transformer != selected_transformer_file
-):
-    st.session_state.processed_results = None
-    st.session_state.last_model = selected_model_file
-    st.session_state.last_transformer = selected_transformer_file
-
-
-# Cached loader that builds explicit paths based on directory location
+# Load Selected Transformer
 @st.cache_resource
-def load_artifacts(transformer_filename, model_filename):
-    t_path = (
-        (MODEL_DIR / transformer_filename)
-        if MODEL_DIR.exists()
-        else (BASE_DIR / transformer_filename)
-    )
-    m_path = (
-        (MODEL_DIR / model_filename)
-        if MODEL_DIR.exists()
-        else (BASE_DIR / model_filename)
-    )
-
-    transformer = joblib.load(t_path)
-    model = joblib.load(m_path)
-    return transformer, model
-
+def load_transformer(transformer_path):
+    t_path = (MODEL_DIR / transformer_path) if MODEL_DIR.exists() else (BASE_DIR / transformer_path)
+    return joblib.load(t_path)
 
 try:
-    transformer, model = load_artifacts(
-        selected_transformer_file, selected_model_file
-    )
-    st.success(
-        f"Loaded: **{selected_model_file}** using **{selected_transformer_file}**"
-    )
+    transformer = load_transformer(selected_transformer_file)
 except Exception as e:
-    st.error(f"Error loading files. Check paths. System Error: {e}")
+    st.error(f"Error loading transformer: {e}")
     st.stop()
+
+
+# Load ALL available models into a dictionary for evaluation comparisons
+@st.cache_resource
+def load_all_models(files):
+    model_dict = {}
+    for f in files:
+        m_path = (MODEL_DIR / f) if MODEL_DIR.exists() else (BASE_DIR / f)
+        try:
+            model_dict[f.replace('.pkl', '')] = joblib.load(m_path)
+        except:
+            pass
+    return model_dict
+
+model_dict = load_all_models(model_files)
+
+if not model_dict:
+    st.error("No valid models found to load.")
+    st.stop()
+
+# Let users pick one active model for preview table predictions
+selected_model_name = st.sidebar.selectbox("Active Preview Model:", options=list(model_dict.keys()))
+active_model = model_dict[selected_model_name]
 
 # Display Feature names
 st.subheader("📋 Expected Model Features")
-trained_features = transformer.expected_columns_
-with st.expander(f"View all {len(trained_features)} feature columns"):
-    st.write(trained_features)
+with st.expander(f"View all {len(transformer.expected_columns_)} feature columns"):
+    st.write(transformer.expected_columns_)
+
 
 # ==========================================
-# 4. STEP 3: PREDICTION ENGINE
+# 5. STEP 3: PREDICTION & EVALUATION ENGINE
 # ==========================================
 st.subheader("📤 Upload Test Data")
-uploaded_file = st.file_uploader(
-    "Choose a CSV file containing your test data", type=["csv"]
-)
+uploaded_file = st.file_uploader("Choose a CSV file containing your test data", type=["csv"])
 
 if uploaded_file is not None:
     X_test_raw = pd.read_csv(uploaded_file)
     st.write("### Raw Uploaded Data Preview", X_test_raw.head())
 
-    run_button = st.button("Run Predictions")
+    # Check if 'income' exists in the uploaded dataset to enable performance benchmarking
+    has_ground_truth = "income" in X_test_raw.columns
 
-    # Auto-trigger execution if button is clicked OR if state requires a recalculation run
-    if run_button or (st.session_state.processed_results is None):
-        with st.spinner(f"Processing data with {selected_model_file}..."):
+    if has_ground_truth:
+        st.info("📊 **Ground truth label ('income') detected!** The app will display model performance comparisons and ROC curves.")
+    else:
+        st.warning("⚠️ **No 'income' column found.** Running in pure production inference mode (no metrics or charts).")
+
+    if st.button("Run Diagnostics & Predictions"):
+        with st.spinner("Processing computations..."):
             try:
-                # ------------------------------------------------------------------
-                # PROACTIVE FIX: Drop 'income' BEFORE passing to the frozen pickle
-                # ------------------------------------------------------------------
+                # 1. Isolate the target label text safely if it exists
+                y_test = None
                 X_input_clean = X_test_raw.copy()
-            
-                # Transform the safely scrubbed features matrix
+                
+                if has_ground_truth:
+                    # Map ground truth labels to binary format matching training setup
+                    y_test = X_input_clean["income"].map({"<=50K": 0, ">50K": 1, 0: 0, 1: 1})
+                    X_input_clean = X_input_clean.drop(columns=["income"])
+
+                # 2. Preprocess features
                 X_test_processed = transformer.transform(X_input_clean)
-                predictions = model.predict(X_test_processed.drop(columns=['income']))
 
-                # Attach outputs back to a visual copy dataframe for user interface
+                # 3. Predict using active selection model for table preview
+                active_preds = active_model.predict(X_test_processed)
                 display_df = X_test_raw.copy()
-                display_df["Predicted_Income"] = predictions
-                display_df["Predicted_Income_Label"] = display_df[
-                    "Predicted_Income"
-                ].map({0: "<=50K", 1: ">50K"})
+                display_df["Predicted_Income"] = active_preds
+                display_df["Predicted_Income_Label"] = display_df["Predicted_Income"].map({0: "<=50K", 1: ">50K"})
 
-                # Store matrix inside Session State memory
-                st.session_state.processed_results = display_df
-            except Exception as transform_error:
-                st.error(f"Prediction failed: {transform_error}")
-                st.session_state.processed_results = None
+                st.success(f"Processing complete using **{selected_model_name}**!")
+                st.write("### Predictions Output Preview", display_df.head())
 
-    # Render results dynamically out of Session State memory
-    if st.session_state.processed_results is not None:
-        st.success(f"Processing complete using **{selected_model_file}**!")
-        st.write(
-            "### Predictions Output Preview",
-            st.session_state.processed_results.head(),
-        )
+                # Download button
+                csv_data = display_df.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    label="📥 Download Predictions CSV",
+                    data=csv_data,
+                    file_name=f"predictions_{selected_model_name}.csv",
+                    mime="text/csv",
+                )
 
-        csv_data = st.session_state.processed_results.to_csv(index=False).encode(
-            "utf-8"
-        )
-        st.download_button(
-            label="📥 Download Predictions CSV",
-            data=csv_data,
-            file_name=f"predictions_{selected_model_file.split('.')[0]}.csv",
-            mime="text/csv",
-        )
+                # 4. Dynamic Evaluation Block (Only triggers if 'income' is present)
+                if has_ground_truth and y_test is not None:
+                    st.markdown("---")
+                    st.subheader("📈 Performance Benchmarking (All Loaded Models)")
+                    
+                    # Target Metric Placeholders
+                    accuracy_dict = {}
+                    recall_dict = {}
+                    precision_dict = {}
+                    f1_dict = {}
+                    mcc_dict = {}
+
+                    # Calculate predictions loop for EVERY loaded model
+                    for name, model_obj in model_dict.items():
+                # 4. Dynamic Evaluation Block (Only triggers if 'income' is present)
+                if has_ground_truth and y_test is not None:
+                    st.markdown("---")
+                    st.subheader("📈 Performance Benchmarking (All Loaded Models)")
+                    
+                    # Target Metric Placeholders
+                    accuracy_dict = {}
+                    recall_dict = {}
+                    precision_dict = {}
+                    f1_dict = {}
+                    mcc_dict = {}
+
+                    # Calculate predictions loop for EVERY loaded model
+                    for name, model_obj in model_dict.items():
+                        try:
+                            y_pred = model_obj.predict(X_test_processed)
+                            acc, rec, prec, f1, mcc_val = evaluate_model(y_test, y_pred)
+                            
+                            accuracy_dict[name] = acc
+                            recall_dict[name] = rec
+                            precision_dict[name] = prec
+                            f1_dict[name] = f1
+                            mcc_dict[name] = mcc_val
+                        except Exception as eval_err:
+                            st.warning(f"Could not calculate metrics for {name}: {eval_err}")
+
+                    # Render Evaluation DataFrame
+                    if accuracy_dict:
+                        metrics_df = get_metrics_dataframe(
+                            accuracy_dict, recall_dict, precision_dict, f1_dict, mcc_dict, list(accuracy_dict.keys())
+                        )
+                        st.dataframe(metrics_df.style.highlight_max(axis=0, color='#26a862'), use_container_width=True)
+
+                        # Plot ROC Curve
+                        st.subheader("🎯 ROC Curves Comparison")
+                        plot_roc_curve(model_dict, X_test_processed, y_test)
+
+            except Exception as e:
+                st.error(f"Inference Engine failure: {e}")
