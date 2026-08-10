@@ -235,17 +235,12 @@ if uploaded_file is not None:
                 # 1. Isolate the target label text safely if it exists
                 y_test = None
                 X_input_clean = X_test_raw.copy()
-                
-                if has_ground_truth:
-                    # Map ground truth labels to binary format matching training setup
-                    y_test = X_input_clean["income"].map({"<=50K": 0, ">50K": 1, 0: 0, 1: 1})
-                    X_input_clean = X_input_clean.drop(columns=["income"])
 
                 # 2. Preprocess features using the transformer
                 X_test_processed = transformer.transform(X_input_clean)
-
+                y_test = X_test_processed['income']
                 # 3. Predict using active selection model for table preview
-                active_preds = active_model.predict(X_test_processed)
+                active_preds = active_model.predict(X_test_processed.drop(columns=['income'])
                 display_df = X_test_raw.copy()
                 display_df["Predicted_Income"] = active_preds
                 display_df["Predicted_Income_Label"] = display_df["Predicted_Income"].map({0: "<=50K", 1: ">50K"})
