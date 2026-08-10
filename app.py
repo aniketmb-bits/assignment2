@@ -52,7 +52,7 @@ class IncomeDataTransformer(BaseEstimator, TransformerMixin):
         self.categorical_features_ = [
             col
             for col in X_clean.select_dtypes(include="object").columns
-            if col != "occupation"
+            if col not in ["occupation", "income"]
         ]
         self.occupation_imputer_ = SimpleImputer(strategy="most_frequent")
         self.occupation_imputer_.fit(X_clean[["occupation"]])
