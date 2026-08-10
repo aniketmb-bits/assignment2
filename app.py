@@ -75,9 +75,6 @@ class IncomeDataTransformer(BaseEstimator, TransformerMixin):
 
 # Force Python to map any unpickling lookups to this file's main module
 import sys
-
-sys.modules["preprocessors"] = sys.modules[__name__]
-
 # ==========================================
 # 2. STEP 2: STREAMLIT APP LOGIC
 # ==========================================
@@ -85,6 +82,7 @@ st.title("🚀 Model Inference Dashboard")
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_DIR = BASE_DIR / "model"
 
+sys.modules["preprocessors"] = sys.modules[__name__]
 # Look for available .pkl files dynamically
 all_files = os.listdir(MODEL_DIR)
 model_options = [
