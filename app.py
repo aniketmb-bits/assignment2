@@ -75,7 +75,8 @@ class IncomeDataTransformer(BaseEstimator, TransformerMixin):
         X_clean["occupation"] = self.occupation_imputer_.transform(
             X_clean[["occupation"]]
         ).ravel()
-
+        if "income" in X_clean.columns:
+            X_clean = X_clean.drop(columns=["income"])
         # SAFE FILTER: Only one-hot encode features that actually match your training categorical list
         dummy_cols = [
             col
