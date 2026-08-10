@@ -240,7 +240,7 @@ if uploaded_file is not None:
                 X_test_processed = transformer.transform(X_input_clean)
                 y_test = X_test_processed['income']
                 # 3. Predict using active selection model for table preview
-                active_preds = active_model.predict(X_test_processed.drop(columns=['income'])
+                active_preds = active_model.predict(X_test_processed.drop(columns=['income']))
                 display_df = X_test_raw.copy()
                 display_df["Predicted_Income"] = active_preds
                 display_df["Predicted_Income_Label"] = display_df["Predicted_Income"].map({0: "<=50K", 1: ">50K"})
