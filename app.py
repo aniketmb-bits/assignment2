@@ -256,7 +256,7 @@ if uploaded_file is not None:
                     mcc_dict = {}
 
                     # Calculate predictions loop for EVERY loaded model
-                    for name, model_obj in model_dict.items():
+            for name, model_obj in model_dict.items():
                 # 4. Dynamic Evaluation Block (Only triggers if 'income' is present)
                 if has_ground_truth and y_test is not None:
                     st.markdown("---")
