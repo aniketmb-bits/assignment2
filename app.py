@@ -246,7 +246,7 @@ if uploaded_file is not None:
                 display_df = X_test_raw.copy()
                 display_df["Predicted_Income"] = active_preds
                 display_df["Predicted_Income_Label"] = display_df["Predicted_Income"].map({0: "<=50K", 1: ">50K"})
-                plot_roc_curve(active_model, X_test_processed.drop(columns=['income']), X_test_processed['income'])
+                plot_roc_curve({selected_model_name: active_model}, X_test_processed.drop(columns=['income']), y_test)
 
                 # Store matrix inside Session State memory
                 st.session_state.processed_results = (display_df, X_test_processed, y_test)
