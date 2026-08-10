@@ -241,9 +241,12 @@ if uploaded_file is not None:
                 y_test = X_test_processed['income']
                 # 3. Predict using active selection model for table preview
                 active_preds = active_model.predict(X_test_processed.drop(columns=['income']))
+                active_pred_prob = active_model.predict_proba(X_test_processed.drop(columns=['income']))
+                accuracy, recall, precision, f1, mcc = evaluate_model(test_df['income'], y_pred)
                 display_df = X_test_raw.copy()
                 display_df["Predicted_Income"] = active_preds
                 display_df["Predicted_Income_Label"] = display_df["Predicted_Income"].map({0: "<=50K", 1: ">50K"})
+                plot_roc_curve(active_model, X_test_processed.drop(columns=['income'], X_test_processed['income'])
 
                 # Store matrix inside Session State memory
                 st.session_state.processed_results = (display_df, X_test_processed, y_test)
