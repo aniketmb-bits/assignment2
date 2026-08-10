@@ -1,6 +1,7 @@
 import os
-import joblib
+import sys
 from pathlib import Path
+import joblib
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -8,9 +9,18 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.impute import SimpleImputer
 
 # ==========================================
-# 1. STEP 1: DEFINE THE EMBEDDED CUSTOM CLASS
+# 1. SETUP ENVIRONMENT AND RESOLVE PATHS
 # ==========================================
-# This must remain exactly identical to your training class structure
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_DIR = BASE_DIR / "model"
+
+# Force Python to map any unpickling lookups to this file's main module immediately
+sys.modules["preprocessors"] = sys.modules[__name__]
+
+
+# ==========================================
+# 2. STEP 1: DEFINE THE EMBEDDED CUSTOM CLASS
+# ==========================================
 class IncomeDataTransformer(BaseEstimator, TransformerMixin):
 
     def __init__(self):
@@ -73,18 +83,25 @@ class IncomeDataTransformer(BaseEstimator, TransformerMixin):
         return X_final
 
 
-# Force Python to map any unpickling lookups to this file's main module
-import sys
 # ==========================================
-# 2. STEP 2: STREAMLIT APP LOGIC
+# 3. STEP 2: STREAMLIT APP LOGIC & STATE
 # ==========================================
 st.title("🚀 Model Inference Dashboard")
-BASE_DIR = Path(__file__).resolve().parent
-MODEL_DIR = BASE_DIR / "model"
 
-sys.modules["preprocessors"] = sys.modules[__name__]
-# Look for available .pkl files dynamically
-all_files = os.listdir(MODEL_DIR)
+# Initialize Session State values to track prediction states between dropdown changes
+if "processed_results" not in st.session_state:
+    st.session_state.processed_results = None
+if "last_model" not in st.session_state:
+    st.session_state.last_model = None
+if "last_transformer" not in st.session_state:
+    st.session_state.last_transformer = None
+
+# Safe folder scanning: scans model directory if it exists, otherwise root workspace
+if MODEL_DIR.exists():
+    all_files = os.listdir(MODEL_DIR)
+else:
+    all_files = os.listdir(BASE_DIR)
+
 model_options = [
     f for f in all_files if f.endswith(".pkl") and "transformer" not in f.lower()
 ]
@@ -106,12 +123,32 @@ selected_transformer_file = st.sidebar.selectbox(
     "Select data transformer file:", options=transformer_options, index=0
 )
 
+# If user flips dropdown settings, invalidate the old results to trigger an automatic re-run
+if (
+    st.session_state.last_model != selected_model_file
+    or st.session_state.last_transformer != selected_transformer_file
+):
+    st.session_state.processed_results = None
+    st.session_state.last_model = selected_model_file
+    st.session_state.last_transformer = selected_transformer_file
 
-# Cached loader
+
+# Cached loader that builds explicit paths based on directory location
 @st.cache_resource
-def load_artifacts(transformer_path, model_path):
-    transformer = joblib.load(transformer_path)
-    model = joblib.load(model_path)
+def load_artifacts(transformer_filename, model_filename):
+    t_path = (
+        (MODEL_DIR / transformer_filename)
+        if MODEL_DIR.exists()
+        else (BASE_DIR / transformer_filename)
+    )
+    m_path = (
+        (MODEL_DIR / model_filename)
+        if MODEL_DIR.exists()
+        else (BASE_DIR / model_filename)
+    )
+
+    transformer = joblib.load(t_path)
+    model = joblib.load(m_path)
     return transformer, model
 
 
@@ -120,12 +157,10 @@ try:
         selected_transformer_file, selected_model_file
     )
     st.success(
-        f"Successfully loaded: **{selected_model_file}** using **{selected_transformer_file}**"
+        f"Loaded: **{selected_model_file}** using **{selected_transformer_file}**"
     )
 except Exception as e:
-    st.error(
-        f"Error loading files. Ensure your pkl files are uploaded. Error: {e}"
-    )
+    st.error(f"Error loading files. Check paths. System Error: {e}")
     st.stop()
 
 # Display Feature names
@@ -134,35 +169,54 @@ trained_features = transformer.expected_columns_
 with st.expander(f"View all {len(trained_features)} feature columns"):
     st.write(trained_features)
 
-# Upload Target Test Data
+# ==========================================
+# 4. STEP 3: PREDICTION ENGINE
+# ==========================================
 st.subheader("📤 Upload Test Data")
 uploaded_file = st.file_uploader(
     "Choose a CSV file containing your test data", type=["csv"]
 )
 
 if uploaded_file is not None:
-    X_test = pd.read_csv(uploaded_file)
-    st.write("### Raw Uploaded Data Preview", X_test.head())
+    X_test_raw = pd.read_csv(uploaded_file)
+    st.write("### Raw Uploaded Data Preview", X_test_raw.head())
 
-    if st.button("Run Predictions"):
+    run_button = st.button("Run Predictions")
+
+    # Auto-trigger execution if button is clicked OR if state requires a recalculation run
+    if run_button or (st.session_state.processed_results is None):
         with st.spinner(f"Processing data with {selected_model_file}..."):
             try:
-                X_test_processed = transformer.transform(X_test)
+                X_test_processed = transformer.transform(X_test_raw)
                 predictions = model.predict(X_test_processed)
-                X_test["Predicted_Income"] = predictions
-                X_test["Predicted_Income_Label"] = X_test[
+
+                # Attach outputs to a visual copy dataframe
+                display_df = X_test_raw.copy()
+                display_df["Predicted_Income"] = predictions
+                display_df["Predicted_Income_Label"] = display_df[
                     "Predicted_Income"
                 ].map({0: "<=50K", 1: ">50K"})
 
-                st.success("Processing complete!")
-                st.write("### Predictions Output Preview", X_test.head())
-
-                csv_data = X_test.to_csv(index=False).encode("utf-8")
-                st.download_button(
-                    label="📥 Download Predictions CSV",
-                    data=csv_data,
-                    file_name=f"predictions_output.csv",
-                    mime="text/csv",
-                )
+                # Store matrix inside Session State memory
+                st.session_state.processed_results = display_df
             except Exception as transform_error:
                 st.error(f"Prediction failed: {transform_error}")
+                st.session_state.processed_results = None
+
+    # Render results dynamically out of Session State memory
+    if st.session_state.processed_results is not None:
+        st.success(f"Processing complete using **{selected_model_file}**!")
+        st.write(
+            "### Predictions Output Preview",
+            st.session_state.processed_results.head(),
+        )
+
+        csv_data = st.session_state.processed_results.to_csv(index=False).encode(
+            "utf-8"
+        )
+        st.download_button(
+            label="📥 Download Predictions CSV",
+            data=csv_data,
+            file_name=f"predictions_{selected_model_file.split('.')[0]}.csv",
+            mime="text/csv",
+        )
