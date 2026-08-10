@@ -88,7 +88,7 @@ model_options = [
     f for f in all_files if f.endswith(".pkl") and "transformer" not in f.lower()
 ]
 if not model_options:
-    model_options = ["trained_model.pkl"]
+    model_options = ["model/logistic_regression_l1.pkl"]
 
 transformer_options = [
     f for f in all_files if f.endswith(".pkl") and "transformer" in f.lower()
