@@ -191,12 +191,10 @@ if uploaded_file is not None:
                 # PROACTIVE FIX: Drop 'income' BEFORE passing to the frozen pickle
                 # ------------------------------------------------------------------
                 X_input_clean = X_test_raw.copy()
-                if "income" in X_input_clean.columns:
-                    X_input_clean = X_input_clean.drop(columns=["income"])
-
+            
                 # Transform the safely scrubbed features matrix
                 X_test_processed = transformer.transform(X_input_clean)
-                predictions = model.predict(X_test_processed)
+                predictions = model.predict(X_test_processed.drop(columns=['income']))
 
                 # Attach outputs back to a visual copy dataframe for user interface
                 display_df = X_test_raw.copy()
