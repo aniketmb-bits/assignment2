@@ -10,8 +10,9 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import (
     accuracy_score, recall_score, precision_score, 
-    f1_score, matthews_corrcoef, RocCurveDisplay
-)
+    f1_score, matthews_corrcoef, RocCurveDisplay,
+    confusion_matrix, ConfusionMatrixDisplay
+) 
 
 # ==========================================
 # 1. SETUP ENVIRONMENT AND RESOLVE PATHS
@@ -249,6 +250,11 @@ if uploaded_file is not None:
                 metrics_df = get_metrics_dataframe({selected_model_name: active_model}, accuracy, recall, precision, f1, mcc)
                 st.dataframe(metrics_df)
                 plot_roc_curve({selected_model_name: active_model}, X_test_processed.drop(columns=['income']), y_test)
+
+                cm = confusion_matrix(y_test, active_preds)
+                disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['<=50k', '>50K'])
+                                               disp.plot(cmap=plt.cm.Blues)
+                plt.plot()
 
                 # Store matrix inside Session State memory
                 st.session_state.processed_results = (display_df, X_test_processed, y_test)
