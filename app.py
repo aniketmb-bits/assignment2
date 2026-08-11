@@ -254,7 +254,8 @@ if uploaded_file is not None:
                 cm = confusion_matrix(y_test, active_preds)
                 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['<=50k', '>50K'])
                 disp.plot(cmap=plt.cm.Blues)
-                plt.plot()
+                st.subheader("📊 Confusion Matrix Chart")
+                st.pyplot(fig)
 
                 # Store matrix inside Session State memory
                 st.session_state.processed_results = (display_df, X_test_processed, y_test)
