@@ -105,11 +105,11 @@ def get_metrics_dataframe(model_dict, accuracy, recall, precision, f1, mcc):
     for model_name in model_dict:
         rows.append({
             'Model Name': model_name,
-            'Accuracy': accuracy[model_name],
-            'Recall': recall[model_name],
-            'Precision': precision[model_name],
-            'F1 Score': f1[model_name],
-            'MCC': mcc[model_name]
+            'Accuracy': accuracy,
+            'Recall': recall,
+            'Precision': precision,
+            'F1 Score': f1,
+            'MCC': mcc
         })
     return pd.DataFrame(rows)
 
