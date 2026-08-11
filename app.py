@@ -251,6 +251,7 @@ if uploaded_file is not None:
                 st.dataframe(metrics_df)
                 plot_roc_curve({selected_model_name: active_model}, X_test_processed.drop(columns=['income']), y_test)
 
+                fig, ax = plt.subplots()
                 cm = confusion_matrix(y_test, active_preds)
                 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['<=50k', '>50K'])
                 disp.plot(cmap=plt.cm.Blues)
