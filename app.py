@@ -254,7 +254,7 @@ if uploaded_file is not None:
                 fig, ax = plt.subplots()
                 cm = confusion_matrix(y_test, active_preds)
                 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['<=50k', '>50K'])
-                disp.plot(cmap=plt.cm.Blues)
+                disp.plot(cmap=plt.cm.Blues, ax=ax)
                 st.subheader("📊 Confusion Matrix Chart")
                 st.pyplot(fig)
 
