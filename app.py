@@ -247,7 +247,7 @@ if uploaded_file is not None:
                 display_df["Predicted_Income"] = active_preds
                 display_df["Predicted_Income_Label"] = display_df["Predicted_Income"].map({0: "<=50K", 1: ">50K"})
                 metrics_df = get_metrics_dataframe({selected_model_name: active_model}, accuracy, recall, precision, f1, mcc)
-                display(metrics_df)
+                print(metrics_df)
                 plot_roc_curve({selected_model_name: active_model}, X_test_processed.drop(columns=['income']), y_test)
 
                 # Store matrix inside Session State memory
