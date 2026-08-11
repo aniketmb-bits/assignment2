@@ -100,7 +100,7 @@ def evaluate_model(y_test, y_pred):
     return accuracy, recall, precision, f1, mcc
 
 
-def get_metrics_dataframe(accuracy, recall, precision, f1, mcc, model_dict):
+def get_metrics_dataframe(model_dict, accuracy, recall, precision, f1, mcc):
     rows = []
     for model_name in model_dict:
         rows.append({
