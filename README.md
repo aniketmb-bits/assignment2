@@ -1,4 +1,4 @@
-signment 2
+Assignment 2
 
 **Problem Statement**
 Implement the following classification models using the dataset chosen above. All
